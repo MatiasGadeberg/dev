@@ -1,0 +1,49 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  Creation of S3 bucket for static hosting of wildrydes website with serverless backend
+Parameters:
+  BucketName:
+    Type: String
+    Description: The name of the s3 bucket you want to deploy
+    AllowedPattern: '[a-zA-Z0-9-.]{1,63}'
+
+Resources:
+  S3BucketForWebsiteContent:
+    Type: 'AWS::S3::Bucket'
+    Properties:
+      BucketName: !Ref BucketName
+      AccessControl: PublicRead
+      WebsiteConfiguration:
+        IndexDocument: index.html
+        ErrorDocument: error.html
+  
+  BucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties: 
+      Bucket: !Ref S3BucketForWebsiteContent
+      PolicyDocument: 
+        Statement: 
+          - 
+            Action: 
+              - "s3:GetObject"
+            Effect: "Allow"
+            Resource: 
+              Fn::Join: 
+                - ""
+                - 
+                  - "arn:aws:s3:::"
+                  - 
+                    Ref: S3BucketForWebsiteContent
+                  - "/*"
+            Principal: "*"
+
+  
+Outputs:
+  BucketName:
+    Value: !Ref S3BucketForWebsiteContent
+    Description: Name of S3 bucket to hold website content
+  WebsiteURL:
+      Value: !GetAtt 
+        - S3BucketForWebsiteContent
+        - WebsiteURL
+      Description: The URL of the newly created website
