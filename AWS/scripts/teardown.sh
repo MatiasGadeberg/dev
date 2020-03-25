@@ -33,11 +33,6 @@ function deleteStack {
 }
 
 s3StaticWebStackName="s3-for-static-hosting"
-#Get bucket name from creation stack
-bucketName=$(aws cloudformation describe-stacks --stack-name "$s3StaticWebStackName" --query 'Stacks[0].Outputs[?OutputKey==`BucketName`].OutputValue' --output text --region "$AwsRegion" --profile "$AwsProfile")
-
-#Delete all files in bucket for deletion
-aws s3 rm s3://$bucketName --recursive --region "$AwsRegion" --profile "$AwsProfile"
 
 #Delete s3 bucket stack
 deleteStack "s3-static-hosting" aws cloudformation delete-stack \

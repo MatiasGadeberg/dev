@@ -42,11 +42,8 @@ runStack "unicorn-s3-static-web" aws cloudformation deploy \
     --parameter-overrides \
       BucketName="$BucketName" \
     --region "$AwsRegion" \
-    --profile "$AwsProfile"
-
-echo "Copying files from remote s3 bucket"
-aws s3 sync s3://wildrydes-us-east-1/WebApplication/1_StaticWebHosting/website s3://$BucketName --region $AwsRegion --profile $AwsProfile
-echo "Copy finnished"
+    --profile "$AwsProfile" \
+    --capabilities CAPABILITY_IAM
 
 websiteUrl=$(aws cloudformation describe-stacks --stack-name "$s3StaticWebStackName" --query 'Stacks[0].Outputs[?OutputKey==`WebsiteURL`].OutputValue' --output text --region "$AwsRegion" --profile "$AwsProfile")
 echo "Opening website: $websiteUrl" 

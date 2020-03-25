@@ -1,0 +1,35 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  Creation of Cognito user pool for authentication of wildrydes users
+Parameters:
+  BucketName:
+    Type: String
+    Description: The name of the s3 bucket you want to deploy
+    AllowedPattern: '[a-zA-Z0-9-.]{1,63}'
+
+Resources:
+  CognitoUserPool:
+    Type: 'AWS::Cognito::UserPool'
+    Properties:
+      UserPoolName: "WildRydesUsers"
+      AliasAttributes:
+        - email
+      AutoVerifiedAttributes:
+        - email
+  
+  AppClient:
+    Type: AWS::Cognito::UserPoolClient
+    Properties: 
+      UserPoolId: !Ref CognitoUserPool
+      ClientName: "WildRydesWebApp"
+      GenerateSecret: False
+
+  
+Outputs:
+  PoolId:
+    Value: !Ref CognitoUserPool
+    Description: Cognito Userpool ID
+  ClientID:
+    Value: !Ref AppClient
+    Description: App client ID
+  

@@ -1,0 +1,7 @@
+curl -H 'Content-Type: ''' -X PUT -d '{
+    "Status": "SUCCESS",
+    "PhysicalResourceId": "s3-for-static-hosting-WebsiteContent-NATCDUR6FYSG",
+    "StackId": "arn:aws:cloudformation:eu-central-1:992583639369:stack/s3-for-static-hosting/6d92b4b0-6e0e-11ea-8b60-06a85d409ac4",
+    "RequestId": "ed18a22d-36df-48db-81dc-0526064f0067",
+    "LogicalResourceId": "WebsiteContent"
+  }' 'https://cloudformation-custom-resource-response-eucentral1.s3.eu-central-1.amazonaws.com/arn%3Aaws%3Acloudformation%3Aeu-central-1%3A992583639369%3Astack/s3-for-static-hosting/6d92b4b0-6e0e-11ea-8b60-06a85d409ac4%7CWebsiteContent%7Ced18a22d-36df-48db-81dc-0526064f0067?X-Amz-Algorithm=AWS4-HMAC-SHA256&X-Amz-Date=20200324T203845Z&X-Amz-SignedHeaders=host&X-Amz-Expires=7200&X-Amz-Credential=AKIAYYGVRKE7FKCLNRSH%2F20200324%2Feu-central-1%2Fs3%2Faws4_request&X-Amz-Signature=d9adfe4d3a099f38fbd363188b3f6bf9e933aa7b5a655fd6e223fe7d01d586d0'
