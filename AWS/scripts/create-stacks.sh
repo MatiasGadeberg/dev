@@ -46,6 +46,27 @@ runStack "unicorn-s3-static-web" aws cloudformation deploy \
     --capabilities CAPABILITY_IAM
 
 websiteUrl=$(aws cloudformation describe-stacks --stack-name "$s3StaticWebStackName" --query 'Stacks[0].Outputs[?OutputKey==`WebsiteURL`].OutputValue' --output text --region "$AwsRegion" --profile "$AwsProfile")
+
+UserPoolStackName="wildrydes-user-pool"
+
+runStack "unicorn-user-pool" aws cloudformation deploy \
+    --stack-name "$UserPoolStackName" \
+    --template-file "../Cloudformation/cognito-user-auth.yml" \
+    --parameter-overrides \
+      BucketName="$BucketName" \
+    --region "$AwsRegion" \
+    --profile "$AwsProfile" \
+    --capabilities CAPABILITY_IAM
+
+BackendStackName="wildrydes-serverless-backend"
+
+runStack "unicorn-serverless-backend" aws cloudformation deploy \
+    --stack-name "$BackendStackName" \
+    --template-file "../Cloudformation/serverless-backend.yml" \
+    --region "$AwsRegion" \
+    --profile "$AwsProfile" \
+    --capabilities CAPABILITY_NAMED_IAM
+
 echo "Opening website: $websiteUrl" 
 start chrome $websiteUrl
 

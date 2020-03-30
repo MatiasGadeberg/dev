@@ -45,6 +45,7 @@ Resources:
                   - "/*"
             Principal: "*"
 
+  #Custom rescource invoking lambda function to copy over data from one bucket to another
   WebsiteContent:
     Properties:
       ServiceToken: !GetAtt CopyS3ObjectsFunction.Arn
@@ -53,6 +54,7 @@ Resources:
       Bucket: !Ref S3BucketForWebsiteContent
     Type: "Custom::S3Objects"
 
+  #IAM role for the lambda function to copy data to and from the involved S3 buckets
   S3CopyRole:
     Type: AWS::IAM::Role
     Properties:
@@ -105,6 +107,7 @@ Resources:
                   - !Sub "arn:aws:s3:::${S3BucketForWebsiteContent}"
                   - !Sub "arn:aws:s3:::${S3BucketForWebsiteContent}/*"
 
+  #Lambda function to copy contents from one bucket to the next
   CopyS3ObjectsFunction:
       Properties:
         Description: Copies objects from a source S3 bucket to a destination

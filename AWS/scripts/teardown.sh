@@ -32,8 +32,21 @@ function deleteStack {
    echo
 }
 
-s3StaticWebStackName="s3-for-static-hosting"
+BackendStackName="wildrydes-serverless-backend"
+#Delete backend stack
+deleteStack "serverless-backend" aws cloudformation delete-stack \
+    --stack-name $BackendStackName \
+    --region "$AwsRegion" \
+    --profile "$AwsProfile"
 
+UserPoolStackName="wildrydes-user-pool"
+#Delete Cognito stack
+deleteStack "User-pool" aws cloudformation delete-stack \
+    --stack-name $UserPoolStackName \
+    --region "$AwsRegion" \
+    --profile "$AwsProfile"
+
+s3StaticWebStackName="s3-for-static-hosting"
 #Delete s3 bucket stack
 deleteStack "s3-static-hosting" aws cloudformation delete-stack \
     --stack-name $s3StaticWebStackName \
