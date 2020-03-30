@@ -1,0 +1,242 @@
+AWSTemplateFormatVersion: 2010-09-09
+Description: >-
+  Creation of API for wilrydes app
+Parameters:
+  BucketStack:
+    Type: String
+    Description: The name of the cloudformation stack used to create the s3 bucket for static hosting
+    AllowedPattern: '[a-zA-Z0-9-.]{1,63}'
+    Default: s3-for-static-hosting
+  CognitoStack:
+    Type: String
+    Description: Name of the stack used to create the cognito user pool
+    Default: wildrydes-user-pool
+  BackendStack:
+    Type: String
+    Description: Name of the stack used to create the serverless backend
+    Default: wildrydes-serverless-backend
+  
+Resources:
+  RestAPI:
+    Type: AWS::ApiGateway::RestApi
+    Properties: 
+      Description: API for invoking Wildrydes backend
+      EndpointConfiguration: 
+        Types: 
+          - EDGE
+      Name: Wildrydes
+  
+  APIAuthorizer:
+    Type: AWS::ApiGateway::Authorizer
+    Properties: 
+      IdentitySource: method.request.header.Authorization
+      Name: WildRydes
+      ProviderARNs: 
+        - Fn::ImportValue:
+            Fn::Sub: '${CognitoStack}-PoolArn'
+      RestApiId: !Ref RestAPI
+      Type: COGNITO_USER_POOLS
+  
+  APIrideResource:
+    Type: AWS::ApiGateway::Resource
+    Properties: 
+      ParentId: !GetAtt RestAPI.RootResourceId
+      PathPart: ride
+      RestApiId: !Ref RestAPI
+  
+  APIrideMethod:
+    Type: AWS::ApiGateway::Method
+    Properties: 
+      AuthorizationType: COGNITO_USER_POOLS
+      AuthorizerId: !Ref APIAuthorizer
+      HttpMethod: POST
+      MethodResponses:
+        - StatusCode: 200
+          ResponseModels:
+            application/json: 'Empty'
+      Integration: 
+        IntegrationHttpMethod: POST
+        Type: AWS_PROXY
+        Uri: 
+          Fn::Sub:
+            - arn:aws:apigateway:${Region}:lambda:path/2015-03-31/functions/${LambdaARN}/invocations
+            - Region: !Ref 'AWS::Region'
+              LambdaARN:
+                Fn::ImportValue: !Sub '${BackendStack}-LambdaArn'
+      ResourceId: !Ref APIrideResource
+      RestApiId: !Ref RestAPI
+  
+  #Options method mimicking CORS enabeling an API via console
+  OptionsMethod:
+    Type: AWS::ApiGateway::Method
+    Properties:
+      AuthorizationType: NONE
+      RestApiId: !Ref RestAPI
+      ResourceId: !Ref APIrideResource
+      HttpMethod: OPTIONS
+      Integration:
+        IntegrationResponses:
+        - StatusCode: 200
+          ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: "'Content-Type,X-Amz-Date,Authorization,X-Api-Key,X-Amz-Security-Token'"
+            method.response.header.Access-Control-Allow-Methods: "'POST,OPTIONS'"
+            method.response.header.Access-Control-Allow-Origin: "'*'"
+          ResponseTemplates:
+            application/json: ''
+        PassthroughBehavior: WHEN_NO_MATCH
+        RequestTemplates:
+          application/json: '{"statusCode": 200}'
+        Type: MOCK
+      MethodResponses:
+      - StatusCode: 200
+        ResponseModels:
+          application/json: 'Empty'
+        ResponseParameters:
+            method.response.header.Access-Control-Allow-Headers: false
+            method.response.header.Access-Control-Allow-Methods: false
+            method.response.header.Access-Control-Allow-Origin: false
+
+  LambdaInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties: 
+      Action: lambda:InvokeFunction
+      FunctionName: 
+        Fn::ImportValue: 
+          Fn::Sub: '${BackendStack}-LambdaArn'
+      Principal: "apigateway.amazonaws.com"
+  
+  APIDeployment:
+    DependsOn: APIrideMethod
+    Type: AWS::ApiGateway::Deployment
+    Properties: 
+      Description: Enabeling unicorn ride requests
+      RestApiId: !Ref RestAPI
+      StageName: prod
+  
+  ConfigFileUpdate:
+    Type: Custom::Configfile
+    Properties:
+      ServiceToken: !GetAtt APIUpdateConfigFunction.Arn
+      UserPool:
+        Fn::ImportValue:
+          Fn::Sub: '${CognitoStack}-PoolId'
+      Client: 
+        Fn::ImportValue:
+          Fn::Sub: '${CognitoStack}-ClientID'
+      Region: !Ref "AWS::Region"
+      Bucket: 
+        Fn::ImportValue:
+          Fn::Sub: '${BucketStack}-BucketName'
+      APIURL: !Sub "https://${RestAPI}.execute-api.${AWS::Region}.amazonaws.com/prod"
+
+  ConfigUpdateRole:
+    Type: AWS::IAM::Role
+    Properties:
+      
+      Path: /wildrydes/
+      AssumeRolePolicyDocument:
+        Version: 2012-10-17
+        Statement:
+          -
+            Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        -
+          PolicyName: S3PutConfig
+          PolicyDocument:
+            Version: 2012-10-17
+            Statement:
+              -
+                Sid: Logging
+                Effect: Allow
+                Action:
+                  - "logs:CreateLogGroup"
+                  - "logs:CreateLogStream"
+                  - "logs:PutLogEvents"
+                Resource: "*"
+              -
+                Sid: ConfigBucketWriteAccess
+                Effect: Allow
+                Action:
+                  - "s3:PutObject"
+                  - "s3:PutObjectAcl"
+                  - "s3:PutObjectVersionAcl"
+                Resource: 
+                - Fn::Sub: 
+                  - "arn:aws:s3:::${BucketName}/*"
+                  - BucketName: 
+                      Fn::ImportValue: !Sub '${BucketStack}-BucketName'
+
+  APIUpdateConfigFunction:
+    Properties:
+      Description: Update a file in an S3 bucket
+      Handler: index.handler
+      Runtime: python2.7
+      Role: !GetAtt ConfigUpdateRole.Arn
+      Timeout: 120
+      Code:
+        ZipFile: |
+          import json
+          import boto3
+          import cfnresponse
+
+          s3 = boto3.resource('s3')
+
+          def create(properties, physical_id):
+            userPoolId = properties['UserPool']
+            clientId = properties['Client']
+            region = properties['Region']
+            bucket = properties['Bucket']
+            APIurl = properties['APIURL']
+
+            object = s3.Object(bucket, 'js/config.js')
+            config_content = """
+          var _config = {
+              cognito: {
+                  userPoolId: '%s', // e.g. us-east-2_uXboG5pAb
+                  userPoolClientId: '%s', // e.g. 25ddkmj4v6hfsfvruhpfi7n4hv
+                  region: '%s', // e.g. us-east-2
+              },
+              api: {
+                  invokeUrl: '%s', // e.g. https://rc7nyt4tql.execute-api.us-west-2.amazonaws.com/prod'
+              }
+          };
+              """
+            config_content = config_content % (userPoolId, clientId, region,APIurl)
+            config = s3.Object(bucket,'js/config.js')
+            config.put(Body=config_content)
+            return cfnresponse.SUCCESS, None
+
+          def update(properties, physical_id):
+            return create(properties, physical_id)
+
+          def delete(properties, physical_id):
+            return cfnresponse.SUCCESS, physical_id
+
+          def handler(event, context):
+            print "Received event: %s" % json.dumps(event)
+
+            status = cfnresponse.FAILED
+            new_physical_id = None
+
+            try:
+              properties = event.get('ResourceProperties')
+              physical_id = event.get('PhysicalResourceId')
+
+              status, new_physical_id = {
+                'Create': create,
+                'Update': update,
+                'Delete': delete
+              }.get(event['RequestType'], lambda x, y: (cfnresponse.FAILED, None))(properties, physical_id)
+            except Exception as e:
+              print "Exception: %s" % e
+              status = cfnresponse.FAILED
+            finally:
+              cfnresponse.send(event, context, status, {}, new_physical_id)
+
+
+    Type: AWS::Lambda::Function
+
+  

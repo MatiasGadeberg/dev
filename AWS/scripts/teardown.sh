@@ -16,13 +16,20 @@ function timing {
 
 function deleteStack {
    local NAME=$1
+   local STACKNAME=$6
    shift;
    startTimer
    echo "$BREAKER1"
    echo "Deleting $NAME"
+   echo "Stackname $STACKNAME"
    echo "$BREAKER2"
 
    "$@";
+   
+   aws cloudformation wait stack-delete-complete \
+    --stack-name $STACKNAME \
+    --region "$AwsRegion" \
+    --profile "$AwsProfile" 
 
    ELAPSED=$(timing)
    echo "$NAME handled in $ELAPSED"
@@ -32,6 +39,13 @@ function deleteStack {
    echo
 }
 
+ApiStackName="API-creation"
+#Delete backend stack
+deleteStack "api" aws cloudformation delete-stack \
+    --stack-name $ApiStackName \
+    --region "$AwsRegion" \
+    --profile "$AwsProfile" \
+    
 BackendStackName="wildrydes-serverless-backend"
 #Delete backend stack
 deleteStack "serverless-backend" aws cloudformation delete-stack \

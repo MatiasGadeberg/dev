@@ -197,4 +197,9 @@ Resources:
             });
           }         
 
-
+Outputs:
+  LambdaArn:
+    Value: !GetAtt RequestUnicornLambda.Arn
+    Description: Unicorn Lambda Arn
+    Export:
+      Name: !Sub '${AWS::StackName}-LambdaArn'

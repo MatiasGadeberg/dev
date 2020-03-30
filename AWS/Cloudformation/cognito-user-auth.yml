@@ -152,7 +152,16 @@ Outputs:
   PoolId:
     Value: !Ref CognitoUserPool
     Description: Cognito Userpool ID
+    Export:
+      Name: !Sub '${AWS::StackName}-PoolId'
+  PoolArn:
+    Value: !GetAtt CognitoUserPool.Arn
+    Description: Cognito Userpool ARN
+    Export:
+      Name: !Sub '${AWS::StackName}-PoolArn'
   ClientID:
     Value: !Ref AppClient
     Description: App client ID
+    Export:
+      Name: !Sub '${AWS::StackName}-ClientID'
   

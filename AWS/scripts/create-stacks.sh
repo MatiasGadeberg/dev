@@ -67,6 +67,19 @@ runStack "unicorn-serverless-backend" aws cloudformation deploy \
     --profile "$AwsProfile" \
     --capabilities CAPABILITY_NAMED_IAM
 
+ApiStackName="wildrydes-api"
+
+runStack "unicorn-api" aws cloudformation deploy \
+    --stack-name "$ApiStackName" \
+    --template-file "../Cloudformation/API.yml" \
+    --parameter-overrides \
+      BucketStack="$s3StaticWebStackName" \
+      CognitoStack="$UserPoolStackName" \
+      BackendStack="$BackendStackName" \
+    --region "$AwsRegion" \
+    --profile "$AwsProfile" \
+    --capabilities CAPABILITY_IAM
+
 echo "Opening website: $websiteUrl" 
 start chrome $websiteUrl
 
