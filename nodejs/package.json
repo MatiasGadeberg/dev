@@ -2,7 +2,7 @@
     "name": "dms-database",
     "version": "0.0.1",
     "devDependencies": {
-        "aws-sdk": "^2.651.0"
+        "aws-sdk": "^2.814.0"
     },
     "dependencies": {
         "fs": "^0.0.1-security",
